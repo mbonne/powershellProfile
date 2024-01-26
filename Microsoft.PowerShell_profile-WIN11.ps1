@@ -12,14 +12,64 @@
 
 ## Alias to shorten commands
 
+$p = "$PROFILE"
+
+
+
+
+
+# $myBin = "$HOME\.bin"
+# If(!(test-path -PathType container $myBin)){
+#     New-Item -ItemType Directory -Path $myBin
+# }
+# ## Adding a bin folder
+# $env:PATH += ";$myBin"
+
 ## Adding iPerf3 to path - https://iperf.fr/iperf-download.php
 $env:PATH += ";C:\Program Files\iperf3\iperf-3.1.3-win64"
+
+# Path to Terminal App settings. Can be used when adding custom Colours etc.
+# e.g. code $terminalSettings
+$terminalSettings = "$HOME\AppData\Local\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
 
 
 # Function example
 # function Do-ActualThing {
 #     # do actual thing
 # }
+
+# Adding functions to use -ForegroundColor flag with Write-Output as well as Write-Host
+# https://stackoverflow.com/questions/4647756/is-there-a-way-to-specify-a-font-color-when-using-write-output
+function Green
+{
+    process { Write-Host $_ -ForegroundColor Green }
+}
+
+function Red
+{
+    process { Write-Host $_ -ForegroundColor Red }
+}
+
+# Make a symbolic link - Needs to be run from Admin shell
+# This is handy if you want to add github repo scripts to the custom bin folder.
+function ln ([string]$symlink,[string]$target) {
+    if (($symlink) -or ($target)) {
+        Write-Output ">>> New-Item -ItemType SymbolicLink -Path $symlink -Target $target" | Green
+        New-Item -ItemType SymbolicLink -Path $symlink -Target $target
+    } else {
+        Write-Output ">>> You need to specify both Symbolic Link file name AND the original target file" | Red
+    }
+
+}
+
+## Poormans Grep
+# look for string in text
+## Example: grep  <string
+# look for string from pipe
+## Example: Get-ChildItem *.txt | grep "error"
+function grep($pattern) {
+    $input | Out-String -Stream| Select-String $pattern
+}
 
 ## https://stackoverflow.com/questions/16651883/server-uptime-need-days-only-powershell
 function uptime {
@@ -45,14 +95,14 @@ function dig([string]$hostAddress) {
 function diga([string]$hostAddress) {
     Write-Host ">>> Resolve-DnsName -Type A -Name $hostAddress"
     $digAnswer = Resolve-DnsName -Type A -Name "$hostAddress"
-    Write-Host ($digAnswer).IPAddress -ForegroundColor Green
+    Write-Output ($digAnswer).IPAddress | Green
     $digAnswer | Format-Table -AutoSize -Property Name,Type,TTL,Section,IPAddress,Strings
 }
 
 function digc([string]$hostAddress) {
     Write-Host ">>> Resolve-DnsName -Type CNAME -Name $hostAddress"
     $digAnswer = Resolve-DnsName -Type CNAME -Name "$hostAddress"
-    Write-Host ($digAnswer).IPAddress -ForegroundColor Green
+    Write-Output ($digAnswer).IPAddress | Green
     $digAnswer | Format-Table -AutoSize -Property Name,Type,TTL,Section,NameHost,Strings
 }
 
@@ -83,18 +133,7 @@ function digp([string]$hostAddress) {
 
 ## DNS checking commands - end
 
-## JSON Pritty Print - Pipe the json via this function
-## https://stackoverflow.com/questions/24789365/prettify-json-in-powershell-3
-## Example:
-## cat .\file.json | PrettyPrintJson
-## curl https://api.twitter.com/1.1/statuses/user_timeline.json | PrettyPrintJson
-function PrettyPrintJson {
-    param(
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-        $json
-    )
-    $json | ConvertFrom-Json | ConvertTo-Json -Depth 100
-}
+
 
 ## Gets the Public IP Address of WAN Interface
 function mywan {
@@ -104,55 +143,6 @@ function mywan {
     Write-Host $wanIP -ForegroundColor Green
     #Write-Host ">>> Invoke-RestMethod -Method Get -Uri http://ip-api.com/json/$wanIP"
     #Invoke-RestMethod -Method Get -Uri "http://ip-api.com/json/$wanIP"
-}
-
-## Geo Lookup of IP address - Uses mywan function defined above
-## https://practical365.com/using-powershell-and-rest-api-requests-to-look-up-ip-address-geolocation-data/
-# 
-function geo([string]$hostAddress) {
-    if ($hostAddress) {
-        #$hostAddress has value
-        #Write-Host "Checking Geo Location of $hostAddress"
-    } else {
-        #$hostAddress has no value
-        $hostAddress = (Invoke-WebRequest http://ifconfig.me/ip ).Content
-        Write-Host "No host targeted, using your current WAN IP: $hostAddress" -ForegroundColor Green
-        Write-Host "To check Geo Location of a host, type geo then host IP or FQDN`n> geo example.com`nor`n> geo 1.1.1.1"
-    }
-    Write-Host ">>> Running nslookup against host with your current DNS server"
-    nslookup $hostAddress
-    Write-Host ">>> Getting Host Address Details from http://ip-api.com"
-    $targetHostInfo = Invoke-RestMethod -Method Get -Uri "http://ip-api.com/json/$hostAddress"
-    $targetHostInfo
-    ## Find and remove all whitespace: https://stackoverflow.com/questions/24355760/removing-spaces-from-a-variable-input-using-powershell-4-0
-    $targetHostIP = ($targetHostInfo).query -replace '\s',''
-    $targetHostLat = ($targetHostInfo).lat -replace '\s',''
-    $targetHostLon = ($targetHostInfo).lon -replace '\s',''
-
-    # Create a menu: https://www.elevenforum.com/t/powershell-create-a-menu.4800/
-    Write-Host "Some helpful links using the target host: $hostAddress" -ForegroundColor Green
-    $mainMenu = {
-        Write-Host
-        Write-Host " 1.) Info about IP address: https://ipinfo.io/$targetHostIP"
-        Write-Host " 2.) Talos Intelligence: https://talosintelligence.com/reputation_center/lookup?search=$hostAddress"
-        Write-Host " 3.) VirusTotal: https://www.virustotal.com/gui/ip-address/$targetHostIP"
-        Write-Host " 4.) Open Google Map: https://www.google.com/maps/@$targetHostLat,$targetHostLon,15z?entry=ttu"
-        Write-Host " 5.) Quit"
-        Write-Host
-        Write-Host "Select an option and press Enter: "  -nonewline -ForegroundColor Green
-        }
-    Do {
-        Invoke-Command $mainMenu
-        $select = Read-Host
-        Switch ($select)
-            {
-                1 {Start-Process "https://ipinfo.io/$targetHostIP"}
-                2 {Start-Process "https://talosintelligence.com/reputation_center/lookup?search=$hostAddress"}
-                3 {Start-Process "https://www.virustotal.com/gui/ip-address/$targetHostIP"}
-                4 {Start-Process "https://www.google.com/maps/@$targetHostLat,$targetHostLon,15z?entry=ttu"}
-            }
-    }
-    while ($select -ne 5)
 }
 
 ## Ping like linux
@@ -189,3 +179,22 @@ Set-Alias v nvim
 Set-Alias htop ntop
 
 Set-Alias ll ls
+
+
+
+
+## Alias Ends
+
+## New Shell windows open with date shown
+Get-date
+
+
+## Run Oh-My-Posh https://dev.to/ansonh/customize-beautify-your-windows-terminal-2022-edition-541l
+## Theme: change path after --config to point at a theme stored in: ~\AppData\Local\Programs\oh-my-posh\themes
+oh-my-posh --init --shell pwsh --config "$HOME\Documents\GitHub\powershellProfile\negligible-noTime.omp.json" | Invoke-Expression
+#oh-my-posh --init --shell pwsh --config $HOME/AppData/Local/Programs/oh-my-posh/themes/negligible.omp.json | Invoke-Expression
+#Default: jandedobbeleer.omp.json
+#minimal: wopian.omp.json
+# star.omp.json
+# busy: multiverse-neon
+# negligible
