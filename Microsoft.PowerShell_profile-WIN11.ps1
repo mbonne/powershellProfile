@@ -8,15 +8,69 @@
 ## Path additions for cli tools
 ## https://stackoverflow.com/questions/714877/setting-windows-powershell-environment-variables
 
+## -> https://github.com/PowerShell/PSReadLine
+## example profile: https://github.com/PowerShell/PSReadLine/blob/master/PSReadLine/SamplePSReadLineProfile.ps1
+
+#Import-Module PSReadLine
+
+## Add Fish like terminal behaviour and colouring among other things.
+## To show the various commands.
+## Get-PSReadLineKeyHandler
+## and
+## Get-PSReadLineOption
+## to change options use:
+## Set-PsReadLineOption -PredictionSource History
+
+#https://megamorf.gitlab.io/cheat-sheets/powershell-psreadline/
+#Prevent leaking passwords or other secrets exluding from history - TODO: confirm it actually does this.
+Set-PSReadLineOption -AddToHistoryHandler {
+    param([string]$line)
+
+    $sensitive = "password|asplaintext|token|key|secret"
+    return ($line -notmatch $sensitive)
+}
+
+
+$PSReadLineOptions = @{
+    EditMode = "Emacs" #Navigate like linux shell - e.g. Ctrl+a and Ctrl+e
+    HistoryNoDuplicates = $true
+    BellStyle = "None"
+    Colors = @{
+        #Based on OneDark Theme
+        "Command" = "#56B6C2" #cyan
+        "String" = "#98C379" #green
+        "Number" = "#D19A66" #orange
+        "Variable" = "#E06C75" #red
+        "Keyword" = "#C678DD" #purple
+        "Default" = "#D19A66" #orange
+        "Type" = "#61AFEF" #blue
+        "Member" = "#61AFEF" #blue
+    }
+}
+Set-PSReadLineOption @PSReadLineOptions
+
+# Modify ls / Get-ChildItem \ dir to show directory in bold instead of blue background colour.
+#https://superuser.com/questions/1756130/change-color-of-powershell-7-get-childitem-result
+$PSStyle.FileInfo.Directory = "`e[1m" # Note the double quotes!
+
+# Searching for commands with up/down arrow is really handy.  The
+# option "moves to end" is useful if you want the cursor at the end
+# of the line while cycling through history like it does w/o searching,
+# without that option, the cursor will remain at the position it was
+# when you used up arrow, which can be useful if you forget the exact
+# string you started the search on.
+#Set-PSReadLineOption -HistorySearchCursorMovesToEnd
+Set-PSReadLineKeyHandler -Key UpArrow -Function HistorySearchBackward
+Set-PSReadLineKeyHandler -Key DownArrow -Function HistorySearchForward
+
+#Exit the shell / close
+Set-PSReadLineKeyHandler -Key Ctrl+d -Function DeleteCharOrExit
+
+
 ## Functions to do more advanced things
 
 ## Alias to shorten commands
-
 $p = "$PROFILE"
-
-
-
-
 
 # $myBin = "$HOME\.bin"
 # If(!(test-path -PathType container $myBin)){
@@ -32,11 +86,34 @@ $env:PATH += ";C:\Program Files\iperf3\iperf-3.1.3-win64"
 # e.g. code $terminalSettings
 $terminalSettings = "$HOME\AppData\Local\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
 
+# Importing custom powershell modules. these can be any collection of ".psm1" files
+# https://learn.microsoft.com/en-us/powershell/scripting/developer/module/how-to-write-a-powershell-script-module?view=powershell-7.4
+Get-ChildItem "$HOME\Documents\GitHub\pwsh\Modules\" -recurse | Where-Object {$_.extension -eq ".psm1"} | ForEach-Object {Import-Module $_.FullName}
+
+Write-Host -Verbose
+
+###SETUP THE THEME https://powers-hell.com/2020/04/05/replicate-your-favorite-vscode-theme-in-windows-terminal/
+#Install-Module -Name MSTerminalSettings -Scope CurrentUser
+
+
+###
+
 
 # Function example
 # function Do-ActualThing {
 #     # do actual thing
 # }
+
+# reload profile like terminal - but remember you can also type '& $p' or '. $p' etc.
+function source {
+    & $p
+}
+
+Function genpass {
+-join(48..57+65..90+97..122|ForEach-Object{[char]$_}|Get-Random -C 20)
+}
+
+
 
 # Adding functions to use -ForegroundColor flag with Write-Output as well as Write-Host
 # https://stackoverflow.com/questions/4647756/is-there-a-way-to-specify-a-font-color-when-using-write-output
@@ -62,24 +139,27 @@ function ln ([string]$symlink,[string]$target) {
 
 }
 
+#Move an item like mv in bash
+#https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.management/move-item?view=powershell-7.4
+function mv([string]$targetObj,[string]$destinationObj) {
+    Write-Host ">>> Move-Item -Path $targetObj -Destination $destinationObj -Confirm"
+    Move-Item -Path $targetObj -Destination $destinationObj -Confirm    
+}
+
+
 ## Poormans Grep
 # look for string in text
 ## Example: grep  <string
 # look for string from pipe
 ## Example: Get-ChildItem *.txt | grep "error"
-function grep($pattern) {
-    $input | Out-String -Stream| Select-String $pattern
+function grep($regex, $dir) {
+        if ( $dir ) {
+                Get-ChildItem $dir | select-string $regex
+                return
+        }
+        $input | select-string $regex
 }
 
-## https://stackoverflow.com/questions/16651883/server-uptime-need-days-only-powershell
-function uptime {
-    $bootuptime = (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime
-    $CurrentDate = Get-Date
-    $uptime = $CurrentDate - $bootuptime
-    Write-Host "Uptime --> Days: $($uptime.days), Hours: $($uptime.Hours), Minutes:$($uptime.Minutes)"  -ForegroundColor green
-    # detailed output just use $uptime on its own
-
-}
 
 function ip {
     get-netipaddress -AddressFamily IPv4 | Where-Object PrefixOrigin -ne "WellKnown" | Select-Object InterfaceAlias, IPAddress, PrefixLength, PrefixOrigin
@@ -136,7 +216,8 @@ function digp([string]$hostAddress) {
 
 
 ## Gets the Public IP Address of WAN Interface
-function mywan {
+# mywan aka mw
+function mw {
     Write-Host ">>> (Invoke-WebRequest http://ifconfig.me/ip ).Content"
     #$wanIP = Invoke-WebRequest ifconfig.io | Select-Object -ExpandProperty Content
     $wanIP = (Invoke-WebRequest http://ifconfig.me/ip ).Content
