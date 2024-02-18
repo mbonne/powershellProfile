@@ -88,9 +88,16 @@ $terminalSettings = "$HOME\AppData\Local\Packages\Microsoft.WindowsTerminal_8wek
 
 # Importing custom powershell modules. these can be any collection of ".psm1" files
 # https://learn.microsoft.com/en-us/powershell/scripting/developer/module/how-to-write-a-powershell-script-module?view=powershell-7.4
-Get-ChildItem "$HOME\Documents\GitHub\pwsh\Modules\" -recurse | Where-Object {$_.extension -eq ".psm1"} | ForEach-Object {Import-Module $_.FullName}
 
-Write-Host -Verbose
+if (Test-Path "$HOME\Documents\GitHub\pwsh\Modules\") {
+    Write-Host "Importing Custom Modules from $HOME\Documents\GitHub\pwsh\Modules\" -f Green
+    Get-ChildItem "$HOME\Documents\GitHub\pwsh\Modules\" -recurse | Where-Object {$_.extension -eq ".psm1"} | ForEach-Object {Import-Module $_.FullName}
+}
+else {
+    # Folder does not exist - Do something else here
+    Write-host "Unable to install Custom Modules.`nFolder Doesn't Exists.`nClone Repo: https://github.com/mbonne/pwsh" -f Red
+}
+
 
 ###SETUP THE THEME https://powers-hell.com/2020/04/05/replicate-your-favorite-vscode-theme-in-windows-terminal/
 #Install-Module -Name MSTerminalSettings -Scope CurrentUser
