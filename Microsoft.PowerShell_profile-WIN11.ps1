@@ -11,7 +11,7 @@
 ## -> https://github.com/PowerShell/PSReadLine
 ## example profile: https://github.com/PowerShell/PSReadLine/blob/master/PSReadLine/SamplePSReadLineProfile.ps1
 
-#Import-Module PSReadLine
+Import-Module PSReadLine
 
 ## Add Fish like terminal behaviour and colouring among other things.
 ## To show the various commands.
@@ -21,14 +21,14 @@
 ## to change options use:
 ## Set-PsReadLineOption -PredictionSource History
 
-#https://megamorf.gitlab.io/cheat-sheets/powershell-psreadline/
-#Prevent leaking passwords or other secrets exluding from history - TODO: confirm it actually does this.
-Set-PSReadLineOption -AddToHistoryHandler {
-    param([string]$line)
+# #https://megamorf.gitlab.io/cheat-sheets/powershell-psreadline/
+# #Prevent leaking passwords or other secrets exluding from history - TODO: confirm it actually does this.
+# Set-PSReadLineOption -AddToHistoryHandler {
+#     param([string]$line)
 
-    $sensitive = "password|asplaintext|token|key|secret"
-    return ($line -notmatch $sensitive)
-}
+#     $sensitive = "password|asplaintext|token|key|secret"
+#     return ($line -notmatch $sensitive)
+# }
 
 
 $PSReadLineOptions = @{
@@ -279,3 +279,5 @@ oh-my-posh --init --shell pwsh --config "$HOME\Documents\GitHub\powershellProfil
 # star.omp.json
 # busy: multiverse-neon
 # negligible
+
+Import-Module -Name Terminal-Icons
