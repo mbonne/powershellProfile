@@ -167,11 +167,18 @@ function grep($regex, $dir) {
         $input | select-string $regex
 }
 
-
+# Network Checking - start
 function ip {
+    Write-Output ">>> get-netipaddress -AddressFamily IPv4 | Where-Object PrefixOrigin -ne "WellKnown" | Select-Object InterfaceAlias, IPAddress, PrefixLength, PrefixOrigin" | Green
     get-netipaddress -AddressFamily IPv4 | Where-Object PrefixOrigin -ne "WellKnown" | Select-Object InterfaceAlias, IPAddress, PrefixLength, PrefixOrigin
 }
 
+function ipint {
+    Write-Output ">>> get-netipinterface | Sort-Object -Property InterfaceMetric | Where-Object -Property ConnectionState -ne 'Disconnected'" | Green
+    get-netipinterface | Sort-Object -Property InterfaceMetric | Where-Object -Property ConnectionState -ne "Disconnected"
+}
+
+# Network Checking - end
 
 ## DNS checking commands - start
 function dig([string]$hostAddress) {
@@ -258,6 +265,7 @@ function wgi([string]$wingetID) {
     }
 }
 
+
 # Alias example: Set-Alias MyAlias runActualCommand
 
 Set-Alias wg winget
@@ -267,9 +275,6 @@ Set-Alias v nvim
 Set-Alias htop ntop
 
 Set-Alias ll ls
-
-
-
 
 ## Alias Ends
 
