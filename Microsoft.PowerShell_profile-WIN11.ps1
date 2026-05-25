@@ -11,8 +11,6 @@
 ## -> https://github.com/PowerShell/PSReadLine
 ## example profile: https://github.com/PowerShell/PSReadLine/blob/master/PSReadLine/SamplePSReadLineProfile.ps1
 
-Import-Module PSReadLine
-
 ## Add Fish like terminal behaviour and colouring among other things.
 ## To show the various commands.
 ## Get-PSReadLineKeyHandler
@@ -292,4 +290,9 @@ oh-my-posh --init --shell pwsh --config "$HOME\Documents\GitHub\powershellProfil
 # busy: multiverse-neon
 # negligible
 
-Import-Module -Name Terminal-Icons
+# Terminal-Icons: lazy-load on first Get-ChildItem call (~250ms saved on startup)
+function global:Get-ChildItem {
+    Remove-Item Function:\Get-ChildItem -ErrorAction SilentlyContinue
+    Import-Module Terminal-Icons -ErrorAction SilentlyContinue
+    Microsoft.PowerShell.Management\Get-ChildItem @args
+}
