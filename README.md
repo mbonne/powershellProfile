@@ -42,7 +42,100 @@ The profile paths include the following variables:
     The $PSHOME variable stores the installation directory for PowerShell
     The $HOME variable stores the current user's home directory
 
-## Check if you have a Profile
+## Quick setup (Windows 11, PowerShell 7)
+
+This repo's profile is `Microsoft.PowerShell_profile-WIN11.ps1`. It is used by symlinking it to `$PROFILE`, so edits in the repo apply immediately.
+
+### 1. Install PowerShell 7 and CLI tools
+
+```powershell
+winget install -e --id Microsoft.PowerShell
+winget install -e --id JanDeDobbeleer.OhMyPosh   # prompt
+winget install -e --id eza-community.eza          # ls / ll / la / lt
+winget install -e --id sharkdp.bat                # cat
+winget install -e --id ajeetdsouza.zoxide         # z (smart cd)
+winget install -e --id junegunn.fzf               # fuzzy finder
+winget install -e --id Neovim.Neovim              # $env:EDITOR
+```
+
+Open a new PowerShell 7 window afterwards so the new tools are on `PATH`.
+
+### 2. Install a Nerd Font
+
+Icons from oh-my-posh, eza and Terminal-Icons need a Nerd Font:
+
+```powershell
+oh-my-posh font install meslo
+```
+
+Then set it in Windows Terminal: **Settings > PowerShell > Appearance > Font face > MesloLGM Nerd Font**.
+
+### 3. Install PowerShell modules
+
+```powershell
+Install-Module PSReadLine -Scope CurrentUser -Force   # needs 2.2+ for ListView predictions
+Install-Module Terminal-Icons -Scope CurrentUser
+Install-Module PSFzf -Scope CurrentUser
+```
+
+### 4. Clone the repo and link the profile
+
+The oh-my-posh theme path is hard-coded to `$HOME\Documents\GitHub\powershellProfile`, so clone it there:
+
+```powershell
+git clone https://github.com/mbonne/powershellProfile "$HOME\Documents\GitHub\powershellProfile"
+```
+
+From an **admin** PowerShell (or with Developer Mode on), back up any existing profile and create the symlink:
+
+```powershell
+if (Test-Path $PROFILE) { Move-Item $PROFILE "$PROFILE.bak" }
+New-Item -ItemType SymbolicLink -Path $PROFILE -Target "$HOME\Documents\GitHub\powershellProfile\Microsoft.PowerShell_profile-WIN11.ps1" -Force
+```
+
+Optional: clone custom modules, which are auto-imported if present:
+
+```powershell
+git clone https://github.com/mbonne/pwsh "$HOME\Documents\GitHub\pwsh"
+```
+
+### 5. Reload
+
+```powershell
+. $PROFILE
+```
+
+## What the profile does
+
+| Feature | Details |
+|---|---|
+| PSReadLine | Emacs keys (`Ctrl+a`/`Ctrl+e`), OneDark colours, history + plugin predictions in ListView, no duplicate history, no bell |
+| History filter | Lines containing `password`, `asplaintext`, `token`, `key` or `secret` are not saved to history |
+| Prompt | oh-my-posh with `negligible-noTime.omp.json` (more themes in `themes/`) |
+| Startup info | Date, free/total RAM, C: disk used/free, uptime |
+| `ls` `ll` `la` `lt` | eza with icons (`ll` adds git status, `lt` shows a tree) |
+| `cat` | bat |
+| `z` | zoxide |
+| `Ctrl+t` / `Ctrl+r` | PSFzf file picker / history search |
+| `..` `...` `....` | Go up 1, 2 or 3 directories |
+| `source` | Reload the profile |
+| `genpass` | Generate a password |
+| `ln <link> <target>` | Create a symlink (admin) |
+| `wgs` / `wgi` / `wg` | winget search / install / alias |
+| Terminal-Icons | Loaded on first `Get-ChildItem` to speed up startup |
+| `$p` | Shortcut to `$PROFILE`; `$env:EDITOR` is `nvim` |
+
+## Troubleshooting
+
+- **`eza`/`bat`/`zoxide`/`oh-my-posh` not recognized**: install it (step 1) and open a new window.
+- **`Import-Module PSFzf` fails**: run step 3.
+- **Boxes instead of icons**: set a Nerd Font in your terminal (step 2).
+- **Prompt theme not found**: the repo is not at `$HOME\Documents\GitHub\powershellProfile`; move it or edit the `oh-my-posh --config` path.
+- **Scripts disabled**: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+
+## Reference: managing profiles
+
+### Check if you have a Profile
 
 ```powershell
 $PROFILE | Get-Member -Type NoteProperty

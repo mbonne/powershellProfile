@@ -19,30 +19,32 @@
 ## to change options use:
 ## Set-PsReadLineOption -PredictionSource History
 
-# #https://megamorf.gitlab.io/cheat-sheets/powershell-psreadline/
-# #Prevent leaking passwords or other secrets exluding from history - TODO: confirm it actually does this.
-# Set-PSReadLineOption -AddToHistoryHandler {
-#     param([string]$line)
-
-#     $sensitive = "password|asplaintext|token|key|secret"
-#     return ($line -notmatch $sensitive)
-# }
-
+# Prevent leaking passwords/secrets from history
+Set-PSReadLineOption -AddToHistoryHandler {
+    param([string]$line)
+    $sensitive = "password|asplaintext|token|key|secret"
+    return ($line -notmatch $sensitive)
+}
 
 $PSReadLineOptions = @{
-    EditMode = "Emacs" #Navigate like linux shell - e.g. Ctrl+a and Ctrl+e
-    HistoryNoDuplicates = $true
-    BellStyle = "None"
+    EditMode                = "Emacs" #Navigate like linux shell - e.g. Ctrl+a and Ctrl+e
+    HistoryNoDuplicates     = $true
+    BellStyle               = "None"
+    PredictionSource        = "HistoryAndPlugin"
+    PredictionViewStyle     = "ListView"
     Colors = @{
         #Based on OneDark Theme
-        "Command" = "#56B6C2" #cyan
-        "String" = "#98C379" #green
-        "Number" = "#D19A66" #orange
-        "Variable" = "#E06C75" #red
-        "Keyword" = "#C678DD" #purple
-        "Default" = "#D19A66" #orange
-        "Type" = "#61AFEF" #blue
-        "Member" = "#61AFEF" #blue
+        "Command"               = "#56B6C2" #cyan
+        "String"                = "#98C379" #green
+        "Number"                = "#D19A66" #orange
+        "Variable"              = "#E06C75" #red
+        "Keyword"               = "#C678DD" #purple
+        "Default"               = "#D19A66" #orange
+        "Type"                  = "#61AFEF" #blue
+        "Member"                = "#61AFEF" #blue
+        "InlinePrediction"      = "#5C6370" #gray
+        "ListPrediction"        = "#5C6370" #gray
+        "ListPredictionSelected"= "#3E4452" #dark gray
     }
 }
 Set-PSReadLineOption @PSReadLineOptions
@@ -69,6 +71,7 @@ Set-PSReadLineKeyHandler -Key Ctrl+d -Function DeleteCharOrExit
 
 ## Alias to shorten commands
 $p = "$PROFILE"
+$env:EDITOR = "nvim"
 
 # $myBin = "$HOME\.bin"
 # If(!(test-path -PathType container $myBin)){
@@ -91,10 +94,7 @@ if (Test-Path "$HOME\Documents\GitHub\pwsh\Modules\") {
     Write-Host "Importing Custom Modules from $HOME\Documents\GitHub\pwsh\Modules\" -f Green
     Get-ChildItem "$HOME\Documents\GitHub\pwsh\Modules\" -recurse | Where-Object {$_.extension -eq ".psm1"} | ForEach-Object {Import-Module $_.FullName}
 }
-else {
-    # Folder does not exist - Do something else here
-    Write-host "Unable to install Custom Modules.`nFolder Doesn't Exists.`nClone Repo: https://github.com/mbonne/pwsh" -f Red
-}
+# shortcut: silently skips custom modules when repo not cloned; clone https://github.com/mbonne/pwsh to enable
 
 
 ###SETUP THE THEME https://powers-hell.com/2020/04/05/replicate-your-favorite-vscode-theme-in-windows-terminal/
@@ -111,7 +111,7 @@ else {
 
 # reload profile like terminal - but remember you can also type '& $p' or '. $p' etc.
 function source {
-    & $p
+    . $p
 }
 
 Function genpass {
@@ -135,7 +135,7 @@ function Red
 # Make a symbolic link - Needs to be run from Admin shell
 # This is handy if you want to add github repo scripts to the custom bin folder.
 function ln ([string]$symlink,[string]$target) {
-    if (($symlink) -or ($target)) {
+    if (($symlink) -and ($target)) {
         Write-Output ">>> New-Item -ItemType SymbolicLink -Path $symlink -Target $target" | Green
         New-Item -ItemType SymbolicLink -Path $symlink -Target $target
     } else {
@@ -276,8 +276,18 @@ Set-Alias ll ls
 
 ## Alias Ends
 
-## New Shell windows open with date shown
-Get-date
+## Startup info
+Get-Date
+$os  = Get-CimInstance Win32_OperatingSystem
+$ram = [math]::Round($os.FreePhysicalMemory / 1MB, 1)
+$tot = [math]::Round($os.TotalVisibleMemorySize / 1MB, 1)
+$up  = (Get-Date) - $os.LastBootUpTime
+$disk = Get-PSDrive C
+$used = [math]::Round($disk.Used / 1GB, 1)
+$free = [math]::Round($disk.Free / 1GB, 1)
+Write-Host ("RAM:  {0} GB free / {1} GB total" -f $ram, $tot) -ForegroundColor Cyan
+Write-Host ("Disk: {0} GB used, {1} GB free" -f $used, $free) -ForegroundColor Cyan
+Write-Host ("Up:   {0}d {1}h {2}m" -f $up.Days, $up.Hours, $up.Minutes) -ForegroundColor Cyan
 
 
 ## Run Oh-My-Posh https://dev.to/ansonh/customize-beautify-your-windows-terminal-2022-edition-541l
@@ -296,3 +306,29 @@ function global:Get-ChildItem {
     Import-Module Terminal-Icons -ErrorAction SilentlyContinue
     Microsoft.PowerShell.Management\Get-ChildItem @args
 }
+
+## Directory traversal shortcuts
+function .. { Set-Location .. }
+function ... { Set-Location ..\.. }
+function .... { Set-Location ..\..\.. }
+
+## eza: modern ls replacement
+function ls  { eza --icons @args }
+function ll  { eza -la --icons --git @args }
+function la  { eza -a --icons @args }
+function lt  { eza --tree --icons @args }
+
+## bat: syntax-highlighted cat
+Set-Alias cat bat
+
+## zoxide: smart cd with frecency
+Invoke-Expression (& { (zoxide init powershell | Out-String) })
+
+## fzf: fuzzy finder — Ctrl+t (files), Ctrl+r (history), Alt+c (cd)
+# Ensure fzf is on PATH (winget installs to Program Files\fzf\bin)
+if (-not (Get-Command fzf -ErrorAction SilentlyContinue)) {
+    $env:PATH += ";C:\Program Files\fzf\bin"
+}
+Import-Module PSFzf
+Set-PsFzfOption -PSReadLineChordProvider 'Ctrl+t' -PSReadLineChordReverseHistory 'Ctrl+r'
+$env:FZF_DEFAULT_OPTS = '--height 40% --layout=reverse --border'
